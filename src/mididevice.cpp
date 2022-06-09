@@ -184,7 +184,7 @@ void CMIDIDevice::MIDIMessageHandler (const u8 *pMessage, size_t nLength, unsign
 			{
 				// MIDI SYSEX per MIDI channel
 				uint8_t ucSysExChannel = (pMessage[2] & 0x07);
-				if (m_ChannelMap[nTG] == ucSysExChannel || m_ChannelMap[nTG] == OmniMode)
+				if (m_ChannelMap[nTG] == ucSysExChannel || m_ChannelMap[nTG] == OmniMode || (pMessage[4] >= 78 && pMessage[4] <= 89 ) )
 				{
 					LOGNOTE("MIDI-SYSEX: channel: %u, len: %u, TG: %u",m_ChannelMap[nTG],nLength,nTG);
 					printf("MIDI-SYSEX: channel: %u, len: %lu, TG: %u",m_ChannelMap[nTG],nLength,nTG);
@@ -337,6 +337,7 @@ void CMIDIDevice::HandleSystemExclusive(const uint8_t* pMessage, const size_t nL
   sysex_return = m_pSynthesizer->checkSystemExclusive(pMessage, nLength, nTG);
   uint8_t instanceID = pMessage[2]&0xF;
   LOGDBG("SYSEX handler return value: %d", sysex_return);
+  printf("SYSEX handler return value: %d for TG %i", sysex_return, instanceID);
 
   switch (sysex_return)
   {
@@ -429,8 +430,17 @@ void CMIDIDevice::HandleSystemExclusive(const uint8_t* pMessage, const size_t nL
       m_pSynthesizer->setAftertouchTarget(pMessage[5],nTG);
       break;
 /* BeZo patches */
+    case 78:						// bank select
+	printf("Bank Select for TG %i\n", instanceID);
+	m_pSynthesizer->BankSelectLSB (pMessage[5], instanceID);
+	break;
+    case 79:						// pgm select
+	printf("Patch Select for TG %i\n", instanceID);
+	m_pSynthesizer->ProgramChange (pMessage[5], instanceID);
+	break;
     case 80:						// Set midi channel
 	LOGDBG("Set midi channel for TG %i", instanceID);
+	printf("Set midi channel for TG %i\n", instanceID);
 	m_pSynthesizer->SetMIDIChannel(pMessage[5], instanceID);
 	break;
     case 81:						// Reverb level
@@ -438,8 +448,12 @@ void CMIDIDevice::HandleSystemExclusive(const uint8_t* pMessage, const size_t nL
         m_pSynthesizer->SetReverbSend (maplong (pMessage[5], 0, 127, 0, 99), instanceID);
 	break;
     case 82:						// Compressor toggle
+	LOGDBG("Set Compressor ");
+        m_pSynthesizer->SetParameter (CMiniDexed::ParameterCompressorEnable, maplong (pMessage[5], 0, 127, 0, 1) );
 	break;
     case 83:						// Transpose
+	LOGDBG("Set Transpose for TG %i", instanceID);
+//        m_pSynthesizer->SetTranspose (maplong (pMessage[5], 0, 127, 0, 99), instanceID);
 	break;
     case 84:						// Detune
 	LOGDBG("Set detune for TG %i", instanceID);
@@ -464,6 +478,12 @@ void CMIDIDevice::HandleSystemExclusive(const uint8_t* pMessage, const size_t nL
     case 87:						// Pitch Bend
 	break;
     case 88:						// Portamento
+	LOGDBG("Set portamento mode for TG %i", instanceID);
+        m_pSynthesizer->setPortamentoMode(pMessage[5],instanceID);
+	break;
+    case 89:						// Mono Mode
+	LOGDBG("Set Mono mode for TG %i", instanceID);
+        m_pSynthesizer->setMonoMode(pMessage[5],instanceID);
 	break;
 /* End of BeZo patches */
     case 100:
